@@ -1,3 +1,5 @@
+# THAY THẾ HOÀN TOÀN PHẦN IMPORT BLOCKCHAIN TRONG app.py
+
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -12,7 +14,7 @@ import hashlib
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # Cho phép frontend kết nối
+CORS(app)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 # Kết nối MongoDB
@@ -20,11 +22,45 @@ MONGODB_URI = os.getenv('MONGODB_URI')
 client = MongoClient(MONGODB_URI)
 db = client['cattle_passport']
 
-# Tạo bộ sưu tập (collections)
+# Tạo bộ sưu tập
 cattle_collection = db['cattle']
 vaccination_collection = db['vaccinations']
 movement_collection = db['movements']
 users_collection = db['users']
+
+# SIMPLE BLOCKCHAIN CLASS - LUÔN HOẠT ĐỘNG
+class SimpleBlockchain:
+    def __init__(self):
+        self.web3 = None
+        self.network = "mock"
+        self.contract_address = os.getenv('BLOCKCHAIN_ADDRESS')
+        self.infura_project_id = os.getenv('INFURA_PROJECT_ID', "8a08cfac4cdf4421b4fdd480e36e1b52")
+        
+    def generate_hash(self, cattle_data):
+        try:
+            data_string = json.dumps(cattle_data, sort_keys=True, default=str)
+            return hashlib.sha256(data_string.encode()).hexdigest()
+        except:
+            return "mock_hash_" + str(hash(str(cattle_data)))[:20]
+    
+    def get_network_info(self):
+        return {
+            "connected": False,
+            "network": "mock",
+            "latest_block": 0,
+            "contract_address": self.contract_address,
+            "infura_url": f"https://{self.network}.infura.io/v3/{self.infura_project_id}",
+            "infura_project_id": self.infura_project_id
+        }
+    
+    def verify_on_blockchain(self, cattle_id, cattle_data):
+        # Mock verification - always returns True for testing
+        print(f"Mock verification for cattle {cattle_id}")
+        return True
+
+# SỬ DỤNG SIMPLE BLOCKCHAIN LUÔN
+blockchain = SimpleBlockchain()
+print("✓ Using SimpleBlockchain (mock mode)")
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -213,6 +249,107 @@ def get_stats():
         "total_movements": total_movements,
         "breed_distribution": breed_distribution
     })
+
+# THÊM CÁC API BLOCKCHAIN
+@app.route('/api/blockchain/status', methods=['GET'])
+def get_blockchain_status():
+    """Lấy trạng thái kết nối blockchain"""
+    if blockchain:
+        info = blockchain.get_network_info()
+        return jsonify(info)
+    else:
+        return jsonify({
+            "connected": False,
+            "network": "none",
+            "message": "Blockchain module not available"
+        })
+
+@app.route('/api/blockchain/generate-hash', methods=['POST'])
+def generate_blockchain_hash():
+    """Tạo hash cho dữ liệu bò"""
+    if not blockchain:
+        return jsonify({"error": "Blockchain module not available"}), 500
+    
+    data = request.json
+    cattle_data = data.get('cattle_data')
+    cattle_id = data.get('cattle_id')
+    
+    if not cattle_data or not cattle_id:
+        return jsonify({"error": "Missing cattle_data or cattle_id"}), 400
+    
+    try:
+        data_hash = blockchain.generate_hash(cattle_data)
+        if data_hash:
+            return jsonify({
+                "success": True,
+                "cattle_id": cattle_id,
+                "data_hash": data_hash,
+                "network": blockchain.network
+            })
+        else:
+            return jsonify({"error": "Failed to generate hash"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/blockchain/verify', methods=['POST'])
+def verify_on_blockchain():
+    """Xác minh dữ liệu trên blockchain"""
+    if not blockchain or not hasattr(blockchain, 'verify_on_blockchain'):
+        return jsonify({"error": "Blockchain verification not available"}), 500
+    
+    data = request.json
+    cattle_data = data.get('cattle_data')
+    cattle_id = data.get('cattle_id')
+    
+    if not cattle_data or not cattle_id:
+        return jsonify({"error": "Missing cattle_data or cattle_id"}), 400
+    
+    try:
+        is_valid = blockchain.verify_on_blockchain(cattle_id, cattle_data)
+        return jsonify({
+            "success": True,
+            "cattle_id": cattle_id,
+            "verified": is_valid,
+            "network": blockchain.network
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/blockchain/test', methods=['GET'])
+def test_blockchain_connection():
+    """Test kết nối blockchain"""
+    try:
+        if blockchain and hasattr(blockchain, 'web3') and blockchain.web3:
+            is_connected = blockchain.web3.is_connected()
+            
+            if is_connected:
+                info = {
+                    "status": "connected",
+                    "network": blockchain.network,
+                    "latest_block": blockchain.web3.eth.block_number,
+                    "chain_id": blockchain.web3.eth.chain_id,
+                    "gas_price": str(blockchain.web3.eth.gas_price),
+                    "contract_address": blockchain.contract_address,
+                    "infura_url": f"https://{blockchain.network}.infura.io/v3/{blockchain.infura_project_id}",
+                    "message": f"Successfully connected to {blockchain.network} via Infura"
+                }
+                return jsonify(info)
+            else:
+                return jsonify({
+                    "status": "disconnected",
+                    "message": "Cannot connect to blockchain"
+                }), 500
+        else:
+            return jsonify({
+                "status": "no_module",
+                "message": "Blockchain module not initialized"
+            })
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
