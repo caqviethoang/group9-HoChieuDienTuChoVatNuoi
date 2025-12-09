@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Hộ chiếu Bò - Cattle Passport</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.3/dist/web3.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1><i class="fas fa-cow"></i> Hệ thống Hộ chiếu Bò</h1>
+                <div class="wallet-info">
+                    <button id="connectWalletBtn" class="btn-wallet">
+                        <i class="fas fa-wallet"></i> Kết nối MetaMask
+                    </button>
+                    <div id="walletAddress" class="wallet-address"></div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-link active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-link" data-tab="register">Đăng ký Bò</button>
+            <button class="tab-link" data-tab="cattle">Danh sách Bò</button>
+            <button class="tab-link" data-tab="vaccination">Tiêm chủng</button>
+            <button class="tab-link" data-tab="movement">Di chuyển</button>
+            <button class="tab-link" data-tab="search">Tìm kiếm</button>
+        </nav>
+
+        <main>
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <h2><i class="fas fa-chart-bar"></i> Dashboard</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Tổng số Bò</h3>
+                        <p id="totalCattle">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Tổng tiêm chủng</h3>
+                        <p id="totalVaccinations">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Tổng di chuyển</h3>
+                        <p id="totalMovements">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Blockchain</h3>
+                        <p id="blockchainStatus">Chưa kết nối</p>
+                    </div>
+                </div>
+                <div class="recent-cattle">
+                    <h3>Bò gần đây</h3>
+                    <div id="recentCattleList"></div>
+                </div>
+            </div>
+
+            <!-- Register Cattle Tab -->
+            <div id="register" class="tab-content">
+                <h2><i class="fas fa-plus-circle"></i> Đăng ký Bò mới</h2>
+                <form id="registerCattleForm" class="form-grid">
+                    <div class="form-group">
+                        <label for="cattleName">Tên bò</label>
+                        <input type="text" id="cattleName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="breed">Giống</label>
+                        <select id="breed" required>
+                            <option value="">Chọn giống</option>
+                            <option value="Brahman">Brahman</option>
+                            <option value="Hereford">Hereford</option>
+                            <option value="Angus">Angus</option>
+                            <option value="Holstein">Holstein</option>
+                            <option value="Jersey">Jersey</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dob">Ngày sinh</label>
+                        <input type="date" id="dob" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="gender">Giới tính</label>
+                        <select id="gender" required>
+                            <option value="">Chọn giới tính</option>
+                            <option value="Male">Đực</option>
+                            <option value="Female">Cái</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Cân nặng (kg)</label>
+                        <input type="number" id="weight" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ownerName">Chủ sở hữu</label>
+                        <input type="text" id="ownerName" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="farmLocation">Địa chỉ trang trại</label>
+                        <input type="text" id="farmLocation" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-save"></i> Đăng ký Bò
+                        </button>
+                        <button type="button" id="saveToBlockchainBtn" class="btn-blockchain" disabled>
+                            <i class="fas fa-link"></i> Lưu lên Blockchain
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Cattle List Tab -->
+            <div id="cattle" class="tab-content">
+                <h2><i class="fas fa-list"></i> Danh sách Bò</h2>
+                <div class="table-container">
+                    <table id="cattleTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tên</th>
+                                <th>Giống</th>
+                                <th>Giới tính</th>
+                                <th>Chủ sở hữu</th>
+                                <th>Blockchain</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cattleTableBody">
+                            <!-- Dữ liệu sẽ được thêm bằng JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Vaccination Tab -->
+            <div id="vaccination" class="tab-content">
+                <h2><i class="fas fa-syringe"></i> Quản lý Tiêm chủng</h2>
+                <div class="vaccination-container">
+                    <div class="vaccination-form">
+                        <h3>Thêm tiêm chủng</h3>
+                        <form id="vaccinationForm">
+                            <div class="form-group">
+                                <label for="vaccCattleId">Chọn Bò</label>
+                                <select id="vaccCattleId" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="vaccineName">Tên vaccine</label>
+                                <input type="text" id="vaccineName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="vaccinationDate">Ngày tiêm</label>
+                                <input type="date" id="vaccinationDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="veterinarian">Bác sĩ thú y</label>
+                                <input type="text" id="veterinarian" required>
+                            </div>
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-plus"></i> Thêm tiêm chủng
+                            </button>
+                        </form>
+                    </div>
+                    <div class="vaccination-list">
+                        <h3>Lịch sử tiêm chủng</h3>
+                        <div id="vaccinationHistory"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Movement Tab -->
+            <div id="movement" class="tab-content">
+                <h2><i class="fas fa-truck-moving"></i> Quản lý Di chuyển</h2>
+                <div class="movement-container">
+                    <div class="movement-form">
+                        <h3>Ghi nhận di chuyển</h3>
+                        <form id="movementForm">
+                            <div class="form-group">
+                                <label for="moveCattleId">Chọn Bò</label>
+                                <select id="moveCattleId" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="fromLocation">Từ địa điểm</label>
+                                <input type="text" id="fromLocation" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="toLocation">Đến địa điểm</label>
+                                <input type="text" id="toLocation" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="movementDate">Ngày di chuyển</label>
+                                <input type="date" id="movementDate" required>
+                            </div>
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-truck-loading"></i> Ghi nhận di chuyển
+                            </button>
+                        </form>
+                    </div>
+                    <div class="movement-list">
+                        <h3>Lịch sử di chuyển</h3>
+                        <div id="movementHistory"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Tab -->
+            <div id="search" class="tab-content">
+                <h2><i class="fas fa-search"></i> Tìm kiếm Bò</h2>
+                <div class="search-container">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Nhập ID, tên bò hoặc chủ sở hữu...">
+                        <button id="searchBtn" class="btn-search">
+                            <i class="fas fa-search"></i> Tìm kiếm
+                        </button>
+                    </div>
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Hệ thống Hộ chiếu Bò &copy; 2024 | Sử dụng MongoDB Cloud và Blockchain MetaMask</p>
+        </footer>
+    </div>
+
+    <!-- Modal for Cattle Details -->
+    <div id="cattleModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">Chi tiết Bò</h2>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="blockchain.js"></script>
+</body>
+</html>
