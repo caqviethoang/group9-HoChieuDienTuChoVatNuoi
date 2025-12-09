@@ -395,3 +395,101 @@ footer {
     color: #6c757d;
     border-top: 1px solid #dee2e6;
 }
+
+/* MetaMask Warning */
+.metaMask-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 10px;
+    max-width: 300px;
+}
+
+.metaMask-warning p {
+    color: #856404;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-install {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0b90b;
+    color: white;
+    text-decoration: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-install:hover {
+    background: #d4a506;
+    color: white;
+}
+
+.btn-test-eth {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-test-eth:hover {
+    background: #138496;
+}
+
+/* Network Warning */
+.network-warning {
+    margin-top: 10px;
+    max-width: 300px;
+}
+
+/* Wallet Address với tooltip */
+.wallet-address {
+    position: relative;
+    cursor: pointer;
+}
+
+.wallet-address:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* Loading indicator */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
