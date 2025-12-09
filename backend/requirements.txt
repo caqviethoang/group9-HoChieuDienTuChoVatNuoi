@@ -4,3 +4,4 @@ pymongo[srv]==4.5.0
 python-dotenv==1.0.0
 web3==6.11.0
 requests==2.31.0
+eth_account==0.9.0
