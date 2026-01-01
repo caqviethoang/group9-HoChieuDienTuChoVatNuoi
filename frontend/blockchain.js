@@ -3,6 +3,9 @@ let isMetaMaskInstalled = false;
 let web3 = null;
 let currentAccount = null;
 
+// API Base URL
+const API_BASE_URL = 'http://localhost:5000/api';
+
 // Kiểm tra MetaMask
 function checkMetaMask() {
     if (typeof window.ethereum !== 'undefined') {
@@ -59,6 +62,9 @@ async function connectMetaMask() {
         // Kiểm tra network
         await checkNetwork();
         
+        // Show success notification
+        showNotification('Đã kết nối thành công với MetaMask!', 'success');
+        
     } catch (error) {
         console.error('Error connecting to MetaMask:', error);
         
@@ -72,7 +78,7 @@ async function connectMetaMask() {
             errorMessage += error.message;
         }
         
-        alert(errorMessage);
+        showNotification(errorMessage, 'error');
     }
 }
 
@@ -92,6 +98,14 @@ function updateWalletUI(account) {
         const shortAddress = account.substring(0, 6) + '...' + account.substring(account.length - 4);
         walletAddress.textContent = shortAddress;
         walletAddress.title = account; // Hiển thị đầy đủ khi hover
+        walletAddress.style.cursor = 'pointer';
+        
+        // Add click to copy functionality
+        walletAddress.onclick = () => {
+            navigator.clipboard.writeText(account).then(() => {
+                showNotification('Đã sao chép địa chỉ vào clipboard!', 'success');
+            });
+        };
     }
     
     if (blockchainStatus) {
@@ -109,17 +123,21 @@ function setupEventListeners() {
             if (accounts.length === 0) {
                 // User disconnected wallet
                 resetWalletConnection();
+                showNotification('Ví MetaMask đã ngắt kết nối', 'warning');
             } else {
                 currentAccount = accounts[0];
                 updateWalletUI(currentAccount);
+                showNotification('Đã chuyển sang tài khoản mới: ' + currentAccount.substring(0, 10) + '...', 'info');
             }
         });
         
         // Chain changed
         window.ethereum.on('chainChanged', function (chainId) {
             console.log('Chain changed:', chainId);
+            const networkName = getNetworkName(parseInt(chainId, 16));
+            showNotification(`Đã chuyển sang mạng: ${networkName}`, 'info');
             // Reload page when network changes
-            window.location.reload();
+            setTimeout(() => window.location.reload(), 1000);
         });
         
         // Connect event
@@ -131,6 +149,7 @@ function setupEventListeners() {
         window.ethereum.on('disconnect', function (error) {
             console.log('Disconnected:', error);
             resetWalletConnection();
+            showNotification('MetaMask đã ngắt kết nối', 'error');
         });
     }
 }
@@ -205,6 +224,9 @@ function resetWalletConnection() {
     
     if (walletAddress) {
         walletAddress.textContent = '';
+        walletAddress.title = '';
+        walletAddress.style.cursor = 'default';
+        walletAddress.onclick = null;
     }
     
     if (blockchainStatus) {
@@ -224,168 +246,118 @@ function resetWalletConnection() {
 // Lấy test ETH cho mạng test (chỉ hoạt động trên testnet)
 async function getTestEth() {
     if (!currentAccount) {
-        alert('Vui lòng kết nối MetaMask trước');
+        showNotification('Vui lòng kết nối MetaMask trước', 'warning');
         return;
     }
     
     try {
-        // Chỉ hoạt động trên Goerli testnet
         const chainId = await web3.eth.getChainId();
-        if (chainId !== 5) { // 5 = Goerli
-            alert('Chức năng này chỉ hoạt động trên Goerli Testnet. Vui lòng chuyển sang Goerli trong MetaMask.');
-            return;
-        }
+        const networkName = getNetworkName(chainId);
         
-        alert('Tính năng nhận test ETH đang được phát triển.\nBạn có thể nhận test ETH miễn phí từ:\n1. https://goerli-faucet.pk910.de/\n2. https://faucet.quicknode.com/ethereum/goerli');
+        showNotification(`Tính năng nhận test ETH đang được phát triển. Bạn đang kết nối đến: ${networkName}`, 'info');
         
     } catch (error) {
         console.error('Error getting test ETH:', error);
+        showNotification('Lỗi khi kiểm tra mạng: ' + error.message, 'error');
     }
 }
 
-// Lưu dữ liệu lên blockchain
-async function saveToBlockchain(cattleId, cattleData) {
-    if (!web3 || !currentAccount) {
-        alert('Vui lòng kết nối MetaMask trước!');
+// Lưu dữ liệu bò lên blockchain thông qua backend
+async function saveCattleToBlockchain(cattleId) {
+    if (!currentAccount) {
+        showNotification('Vui lòng kết nối MetaMask trước!', 'warning');
         return null;
     }
     
     try {
-        // Địa chỉ smart contract (testnet address)
-        const contractAddress = '0x44Ed14113601543DE2d6695FDF77859ff5D70219';
+        showNotification('Đang lưu dữ liệu lên blockchain...', 'info');
         
-        // ABI đơn giản cho testing
-        const contractABI = [
-            {
-                "inputs": [
-                    {"internalType": "string", "name": "cattleId", "type": "string"},
-                    {"internalType": "string", "name": "dataHash", "type": "string"}
-                ],
-                "name": "storeCattleData",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
+        // Lấy thông tin bò từ backend
+        const cattleResponse = await fetch(`${API_BASE_URL}/cattle/${cattleId}`);
+        const cattleData = await cattleResponse.json();
+        
+        if (!cattleData.success) {
+            throw new Error('Không tìm thấy thông tin bò');
+        }
+        
+        // Tạo message để ký
+        const timestamp = new Date().toISOString();
+        const message = `Cattle Passport: ${cattleId}\nTimestamp: ${timestamp}\nData Hash: ${cattleData.data.blockchain_hash || 'N/A'}`;
+        
+        // Yêu cầu chữ ký từ MetaMask
+        const signature = await window.ethereum.request({
+            method: 'personal_sign',
+            params: [message, currentAccount],
+        });
+        
+        // Gửi chữ ký lên backend
+        const response = await fetch(`${API_BASE_URL}/blockchain/sign`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
             },
-            {
-                "inputs": [{"internalType": "string", "name": "cattleId", "type": "string"}],
-                "name": "getCattleData",
-                "outputs": [{"internalType": "string", "name": "", "type": "string"}],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ];
+            body: JSON.stringify({
+                signature: signature,
+                message: message,
+                address: currentAccount,
+                cattle_id: cattleId
+            })
+        });
         
-        const contract = new web3.eth.Contract(contractABI, contractAddress);
+        const result = await response.json();
         
-        // Tạo hash từ dữ liệu
-        const dataString = JSON.stringify(cattleData);
-        const dataHash = web3.utils.sha3(dataString);
-        
-        // Kiểm tra gas
-        const gasPrice = await web3.eth.getGasPrice();
-        const gasEstimate = await contract.methods.storeCattleData(cattleId, dataHash)
-            .estimateGas({ from: currentAccount });
-        
-        console.log(`Gas estimate: ${gasEstimate}, Gas price: ${web3.utils.fromWei(gasPrice, 'gwei')} Gwei`);
-        
-        // Gửi transaction (yêu cầu user ký)
-        const tx = contract.methods.storeCattleData(cattleId, dataHash);
-        const txData = {
-            from: currentAccount,
-            gas: Math.round(gasEstimate * 1.2), // Thêm 20% buffer
-            gasPrice: gasPrice
-        };
-        
-        // Send transaction
-        const receipt = await tx.send(txData);
-        
-        console.log('Transaction successful:', receipt);
-        
-        // Cập nhật hash lên backend
-        await updateBlockchainHash(cattleId, dataHash);
-        
-        return receipt.transactionHash;
+        if (result.success) {
+            showNotification('✓ Đã lưu và ký dữ liệu lên blockchain thành công!', 'success');
+            return result;
+        } else {
+            throw new Error(result.error || 'Lỗi khi lưu lên blockchain');
+        }
         
     } catch (error) {
         console.error('Error saving to blockchain:', error);
         
         let errorMessage = 'Lỗi khi lưu lên blockchain: ';
         if (error.code === 4001) {
-            errorMessage += 'Người dùng từ chối transaction';
+            errorMessage += 'Người dùng từ chối ký';
         } else if (error.message.includes('insufficient funds')) {
             errorMessage += 'Không đủ ETH để trả gas fee';
         } else {
             errorMessage += error.message;
         }
         
-        alert(errorMessage);
+        showNotification(errorMessage, 'error');
         return null;
     }
 }
 
-// Cập nhật hash lên backend
-async function updateBlockchainHash(cattleId, hash) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/cattle/${cattleId}/blockchain`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ blockchain_hash: hash })
-        });
-        
-        if (response.ok) {
-            console.log('Blockchain hash updated in database');
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('Error updating blockchain hash:', error);
-        return false;
-    }
-}
-
-// Kiểm tra dữ liệu trên blockchain
-async function verifyOnBlockchain(cattleId, cattleData) {
-    if (!web3) {
-        alert('Vui lòng kết nối MetaMask trước!');
+// Xác minh dữ liệu trên blockchain
+async function verifyCattleOnBlockchain(cattleId) {
+    if (!currentAccount) {
+        showNotification('Vui lòng kết nối MetaMask trước!', 'warning');
         return false;
     }
     
     try {
-        const contractAddress = '0x44Ed14113601543DE2d6695FDF77859ff5D70219';
-        const contractABI = [
-            {
-                "inputs": [{"internalType": "string", "name": "cattleId", "type": "string"}],
-                "name": "getCattleData",
-                "outputs": [{"internalType": "string", "name": "", "type": "string"}],
-                "stateMutability": "view",
-                "type": "function"
+        showNotification('Đang xác minh trên blockchain...', 'info');
+        
+        const response = await fetch(`${API_BASE_URL}/blockchain/verify/${cattleId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            if (result.verified) {
+                showNotification('✓ Dữ liệu đã được xác minh trên blockchain!', 'success');
+                return true;
+            } else {
+                showNotification('⚠ Dữ liệu chưa được xác minh trên blockchain', 'warning');
+                return false;
             }
-        ];
-        
-        const contract = new web3.eth.Contract(contractABI, contractAddress);
-        
-        // Lấy hash từ blockchain
-        const storedHash = await contract.methods.getCattleData(cattleId).call();
-        
-        // Tạo hash từ dữ liệu hiện tại
-        const dataString = JSON.stringify(cattleData);
-        const currentHash = web3.utils.sha3(dataString);
-        
-        const isVerified = storedHash === currentHash;
-        
-        if (isVerified) {
-            alert('✓ Dữ liệu được xác minh trên blockchain!');
         } else {
-            alert('✗ Dữ liệu không khớp với blockchain');
+            throw new Error(result.error || 'Lỗi xác minh');
         }
-        
-        return isVerified;
         
     } catch (error) {
         console.error('Error verifying on blockchain:', error);
-        alert('Lỗi khi xác minh trên blockchain: ' + error.message);
+        showNotification('Lỗi khi xác minh trên blockchain: ' + error.message, 'error');
         return false;
     }
 }
@@ -420,11 +392,85 @@ function addTestEthButton() {
     const walletInfo = document.querySelector('.wallet-info');
     if (!walletInfo) return;
     
+    // Check if button already exists
+    if (document.getElementById('testEthBtn')) return;
+    
     const testEthBtn = document.createElement('button');
     testEthBtn.id = 'testEthBtn';
     testEthBtn.className = 'btn-test-eth';
     testEthBtn.innerHTML = '<i class="fas fa-coins"></i> Lấy Test ETH';
     testEthBtn.onclick = getTestEth;
+    testEthBtn.style.marginLeft = '10px';
     
     walletInfo.appendChild(testEthBtn);
 }
+
+// Helper function to show notifications
+function showNotification(message, type = 'info') {
+    // Check if notification function exists in app.js
+    if (window.showNotification) {
+        window.showNotification(message, type);
+        return;
+    }
+    
+    // Fallback notification
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+        <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; cursor: pointer;">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-width: 300px;
+        max-width: 400px;
+        z-index: 9999;
+        animation: slideIn 0.3s ease-out;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#17a2b8'};
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Add animation keyframes
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// Make functions globally available
+window.connectMetaMask = connectMetaMask;
+window.getTestEth = getTestEth;
+window.saveCattleToBlockchain = saveCattleToBlockchain;
+window.verifyCattleOnBlockchain = verifyCattleOnBlockchain;
