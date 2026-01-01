@@ -17,7 +17,7 @@
                     <button id="connectWalletBtn" class="btn-wallet">
                         <i class="fas fa-wallet"></i> Kết nối MetaMask
                     </button>
-                    <div id="walletAddress" class="wallet-address"></div>
+                    <div id="walletAddress" class="wallet-address" title="Click để copy"></div>
                 </div>
             </div>
         </header>
@@ -29,12 +29,13 @@
             <button class="tab-link" data-tab="vaccination">Tiêm chủng</button>
             <button class="tab-link" data-tab="movement">Di chuyển</button>
             <button class="tab-link" data-tab="search">Tìm kiếm</button>
+            <button class="tab-link" data-tab="blockchain">Blockchain</button>
         </nav>
 
         <main>
             <!-- Dashboard Tab -->
             <div id="dashboard" class="tab-content active">
-                <h2><i class="fas fa-chart-bar"></i> Dashboard</h2>
+                <h2>Dashboard</h2>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3>Tổng số Bò</h3>
@@ -55,20 +56,20 @@
                 </div>
                 <div class="recent-cattle">
                     <h3>Bò gần đây</h3>
-                    <div id="recentCattleList"></div>
+                    <div id="recentCattleList" class="cattle-grid"></div>
                 </div>
             </div>
 
             <!-- Register Cattle Tab -->
             <div id="register" class="tab-content">
-                <h2><i class="fas fa-plus-circle"></i> Đăng ký Bò mới</h2>
+                <h2>Đăng ký Bò mới</h2>
                 <form id="registerCattleForm" class="form-grid">
                     <div class="form-group">
-                        <label for="cattleName">Tên bò</label>
+                        <label for="cattleName">Tên bò *</label>
                         <input type="text" id="cattleName" required>
                     </div>
                     <div class="form-group">
-                        <label for="breed">Giống</label>
+                        <label for="breed">Giống *</label>
                         <select id="breed" required>
                             <option value="">Chọn giống</option>
                             <option value="Brahman">Brahman</option>
@@ -80,10 +81,10 @@
                     </div>
                     <div class="form-group">
                         <label for="dob">Ngày sinh</label>
-                        <input type="date" id="dob" required>
+                        <input type="date" id="dob">
                     </div>
                     <div class="form-group">
-                        <label for="gender">Giới tính</label>
+                        <label for="gender">Giới tính *</label>
                         <select id="gender" required>
                             <option value="">Chọn giới tính</option>
                             <option value="Male">Đực</option>
@@ -92,30 +93,54 @@
                     </div>
                     <div class="form-group">
                         <label for="weight">Cân nặng (kg)</label>
-                        <input type="number" id="weight" required>
+                        <input type="number" id="weight" min="0" step="0.1">
                     </div>
                     <div class="form-group">
-                        <label for="ownerName">Chủ sở hữu</label>
+                        <label for="ownerName">Chủ sở hữu *</label>
                         <input type="text" id="ownerName" required>
                     </div>
                     <div class="form-group full-width">
-                        <label for="farmLocation">Địa chỉ trang trại</label>
-                        <input type="text" id="farmLocation" required>
+                        <label for="farmLocation">Địa chỉ trang trại *</label>
+                        <textarea id="farmLocation" rows="2" required></textarea>
                     </div>
-                    <div class="form-group full-width">
+                    <div class="form-group">
+                        <label for="healthStatus">Tình trạng sức khỏe</label>
+                        <select id="healthStatus">
+                            <option value="Healthy">Khỏe mạnh</option>
+                            <option value="Sick">Bị bệnh</option>
+                            <option value="Recovering">Đang hồi phục</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ownerContact">Liên hệ chủ sở hữu</label>
+                        <input type="tel" id="ownerContact">
+                    </div>
+                    <div class="form-actions full-width">
                         <button type="submit" class="btn-submit">
-                            <i class="fas fa-save"></i> Đăng ký Bò
+                            Đăng ký Bò
                         </button>
                         <button type="button" id="saveToBlockchainBtn" class="btn-blockchain" disabled>
-                            <i class="fas fa-link"></i> Lưu lên Blockchain
+                            Lưu lên Blockchain
                         </button>
+                        <p class="form-note">Các trường có dấu * là bắt buộc</p>
                     </div>
                 </form>
             </div>
 
             <!-- Cattle List Tab -->
             <div id="cattle" class="tab-content">
-                <h2><i class="fas fa-list"></i> Danh sách Bò</h2>
+                <h2>Danh sách Bò</h2>
+                <div class="table-controls">
+                    <div class="table-search">
+                        <input type="text" id="cattleSearchInput" placeholder="Tìm kiếm bò...">
+                        <button id="cattleSearchBtn" class="btn-search">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <button onclick="loadCattleList()" class="btn-refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
                 <div class="table-container">
                     <table id="cattleTable">
                         <thead>
@@ -138,29 +163,35 @@
 
             <!-- Vaccination Tab -->
             <div id="vaccination" class="tab-content">
-                <h2><i class="fas fa-syringe"></i> Quản lý Tiêm chủng</h2>
+                <h2>Quản lý Tiêm chủng</h2>
                 <div class="vaccination-container">
                     <div class="vaccination-form">
                         <h3>Thêm tiêm chủng</h3>
                         <form id="vaccinationForm">
                             <div class="form-group">
-                                <label for="vaccCattleId">Chọn Bò</label>
+                                <label for="vaccCattleId">Chọn Bò *</label>
                                 <select id="vaccCattleId" required></select>
                             </div>
                             <div class="form-group">
-                                <label for="vaccineName">Tên vaccine</label>
-                                <input type="text" id="vaccineName" required>
+                                <label for="vaccineName">Tên vaccine *</label>
+                                <select id="vaccineName" required>
+                                    <option value="">Chọn vaccine</option>
+                                    <option value="Foot and Mouth">Foot and Mouth</option>
+                                    <option value="Brucellosis">Brucellosis</option>
+                                    <option value="Anthrax">Anthrax</option>
+                                    <option value="Other">Khác</option>
+                                </select>
                             </div>
                             <div class="form-group">
-                                <label for="vaccinationDate">Ngày tiêm</label>
+                                <label for="vaccinationDate">Ngày tiêm *</label>
                                 <input type="date" id="vaccinationDate" required>
                             </div>
                             <div class="form-group">
-                                <label for="veterinarian">Bác sĩ thú y</label>
+                                <label for="veterinarian">Bác sĩ thú y *</label>
                                 <input type="text" id="veterinarian" required>
                             </div>
                             <button type="submit" class="btn-submit">
-                                <i class="fas fa-plus"></i> Thêm tiêm chủng
+                                Thêm tiêm chủng
                             </button>
                         </form>
                     </div>
@@ -173,29 +204,29 @@
 
             <!-- Movement Tab -->
             <div id="movement" class="tab-content">
-                <h2><i class="fas fa-truck-moving"></i> Quản lý Di chuyển</h2>
+                <h2>Quản lý Di chuyển</h2>
                 <div class="movement-container">
                     <div class="movement-form">
                         <h3>Ghi nhận di chuyển</h3>
                         <form id="movementForm">
                             <div class="form-group">
-                                <label for="moveCattleId">Chọn Bò</label>
+                                <label for="moveCattleId">Chọn Bò *</label>
                                 <select id="moveCattleId" required></select>
                             </div>
                             <div class="form-group">
-                                <label for="fromLocation">Từ địa điểm</label>
+                                <label for="fromLocation">Từ địa điểm *</label>
                                 <input type="text" id="fromLocation" required>
                             </div>
                             <div class="form-group">
-                                <label for="toLocation">Đến địa điểm</label>
+                                <label for="toLocation">Đến địa điểm *</label>
                                 <input type="text" id="toLocation" required>
                             </div>
                             <div class="form-group">
-                                <label for="movementDate">Ngày di chuyển</label>
+                                <label for="movementDate">Ngày di chuyển *</label>
                                 <input type="date" id="movementDate" required>
                             </div>
                             <button type="submit" class="btn-submit">
-                                <i class="fas fa-truck-loading"></i> Ghi nhận di chuyển
+                                Ghi nhận di chuyển
                             </button>
                         </form>
                     </div>
@@ -208,21 +239,53 @@
 
             <!-- Search Tab -->
             <div id="search" class="tab-content">
-                <h2><i class="fas fa-search"></i> Tìm kiếm Bò</h2>
+                <h2>Tìm kiếm Bò</h2>
                 <div class="search-container">
                     <div class="search-box">
-                        <input type="text" id="searchInput" placeholder="Nhập ID, tên bò hoặc chủ sở hữu...">
+                        <input type="text" id="searchInput" placeholder="Nhập từ khóa tìm kiếm...">
                         <button id="searchBtn" class="btn-search">
-                            <i class="fas fa-search"></i> Tìm kiếm
+                            Tìm kiếm
                         </button>
                     </div>
                     <div id="searchResults" class="search-results"></div>
                 </div>
             </div>
+
+            <!-- Blockchain Tab -->
+            <div id="blockchain" class="tab-content">
+                <h2>Quản lý Blockchain</h2>
+                <div class="blockchain-status">
+                    <div class="status-card">
+                        <h3>Trạng thái Blockchain</h3>
+                        <div id="blockchainHealth" class="health-status">
+                            <span id="blockchainStatusText">Đang kiểm tra...</span>
+                        </div>
+                        <div class="blockchain-info">
+                            <p>Địa chỉ: <span id="blockchainAddress">Chưa kết nối</span></p>
+                            <p>Mạng: <span id="blockchainNetwork">Chưa kết nối</span></p>
+                        </div>
+                    </div>
+                    <div class="blockchain-actions">
+                        <button onclick="connectMetaMask()" class="btn-action">
+                            Kết nối MetaMask
+                        </button>
+                        <button onclick="getTestEth()" class="btn-action">
+                            Lấy Test ETH
+                        </button>
+                        <button onclick="verifyAllCattle()" class="btn-action">
+                            Xác minh tất cả
+                        </button>
+                    </div>
+                </div>
+                <div class="blockchain-cattle">
+                    <h3>Bò chưa lưu Blockchain</h3>
+                    <div id="unblockchainCattle"></div>
+                </div>
+            </div>
         </main>
 
         <footer>
-            <p>Hệ thống Hộ chiếu Bò &copy; 2025 | Sử dụng MongoDB Cloud và Blockchain MetaMask</p>
+            <p>Hệ thống Hộ chiếu Bò &copy; 2026</p>
         </footer>
     </div>
 
